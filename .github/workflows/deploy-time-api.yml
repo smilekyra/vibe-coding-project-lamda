@@ -1,0 +1,51 @@
+name: Deploy time-api
+
+on:
+  push:
+    branches: 
+      - master
+    paths:
+      - 'functions/time-api/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-time-api.yml'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC authentication
+      contents: read  # Required to check out the repository
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        run: go mod download
+      
+      - name: Build time-api
+        run: |
+          mkdir -p dist/time-api
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/time-api/bootstrap ./functions/time-api
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Deploy time-api to Lambda
+        uses: aws-actions/aws-lambda-deploy@v1
+        with:
+          function-name: ${{ secrets.LAMBDA_FUNCTION_PREFIX }}time-api
+          code-artifacts-dir: ./dist/time-api
+          runtime: provided.al2023
+          handler: bootstrap
+          role: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+

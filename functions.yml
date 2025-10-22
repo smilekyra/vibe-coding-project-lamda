@@ -1,0 +1,16 @@
+# Define all Lambda functions in this project
+# This file is used by GitHub Actions to determine which functions to build and deploy
+
+functions:
+  - name: time-api
+    directory: functions/time-api
+    description: Returns current time in JST timezone
+    
+  - name: hello-world
+    directory: functions/hello-world
+    description: Simple hello world API with query parameter support
+    
+  - name: receipt-processor
+    directory: functions/receipt-processor
+    description: Process receipt images with OCR and extract structured data
+

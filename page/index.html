@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Upload and process receipt images">
+    <meta name="theme-color" content="#ffffff">
+    <title>Receipt Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica', 'Arial', sans-serif;
+            background-color: #ffffff;
+            color: #37352f;
+            line-height: 1.5;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 40px 0;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #000000;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #787774;
+            margin-bottom: 40px;
+        }
+
+        .upload-section {
+            margin-bottom: 32px;
+        }
+
+        .upload-area {
+            border: 2px dashed #e1e1e0;
+            border-radius: 3px;
+            padding: 48px 24px;
+            text-align: center;
+            background-color: #fbfbfa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #c1c1c0;
+            background-color: #f7f7f6;
+        }
+
+        .upload-area.dragover {
+            border-color: #37352f;
+            background-color: #f7f7f6;
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            color: #c1c1c0;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            color: #787774;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #9b9a97;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .preview-section {
+            margin-bottom: 32px;
+            display: none;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .preview-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #37352f;
+        }
+
+        .clear-btn {
+            background: none;
+            border: none;
+            color: #787774;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background-color 0.2s ease;
+        }
+
+        .clear-btn:hover {
+            background-color: #f1f1f0;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border: 1px solid #e1e1e0;
+            border-radius: 3px;
+            background-color: #fbfbfa;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background-color: #37352f;
+            color: #ffffff;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #2c2b28;
+        }
+
+        .btn-primary:disabled {
+            background-color: #e1e1e0;
+            color: #9b9a97;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background-color: #ffffff;
+            color: #37352f;
+            border: 1px solid #e1e1e0;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f7f7f6;
+        }
+
+        .result-section {
+            display: none;
+            padding: 24px;
+            background-color: #fbfbfa;
+            border: 1px solid #e1e1e0;
+            border-radius: 3px;
+            margin-top: 32px;
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e1e1e0;
+        }
+
+        .result-content {
+            font-size: 14px;
+            color: #37352f;
+            line-height: 1.6;
+        }
+
+        .result-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f1f0;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 500;
+            color: #787774;
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .result-value {
+            color: #37352f;
+            flex: 1;
+        }
+
+        .result-value.amount {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .items-list {
+            display: block;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            margin: 6px 0;
+            color: #37352f;
+            background-color: #ffffff;
+            border: 1px solid #e1e1e0;
+            border-radius: 3px;
+        }
+
+        .item-row:first-child {
+            margin-top: 0;
+        }
+
+        .item-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .item-name {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .item-details {
+            color: #37352f;
+            font-size: 14px;
+            font-weight: 500;
+            margin-left: 16px;
+            white-space: nowrap;
+        }
+
+        .receipt-link {
+            color: #37352f;
+            text-decoration: underline;
+            text-decoration-color: #e1e1e0;
+            transition: text-decoration-color 0.2s ease;
+        }
+
+        .receipt-link:hover {
+            text-decoration-color: #37352f;
+        }
+
+        .error-message {
+            background-color: #fff5f5;
+            border: 1px solid #ffd6d6;
+            color: #c1121f;
+            padding: 12px 16px;
+            border-radius: 3px;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 32px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 2px solid #e1e1e0;
+            border-top-color: #37352f;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 12px;
+            font-size: 14px;
+            color: #787774;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 20px 0;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .upload-area {
+                padding: 32px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Receipt Processor</h1>
+        <p class="subtitle">Upload a receipt image to extract and process information</p>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">↑</div>
+                <div class="upload-text">Click to upload or drag and drop</div>
+                <div class="upload-hint">PNG, JPG, JPEG (max 10MB)</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg">
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <div class="preview-header">
+                <span class="preview-title">Preview</span>
+                <button class="clear-btn" id="clearBtn">Clear</button>
+            </div>
+            <img class="preview-image" id="previewImage" alt="Receipt preview">
+            <div class="button-group">
+                <button class="btn btn-primary" id="uploadBtn">Process Receipt</button>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Processing receipt...</div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-title">Receipt Information</div>
+            <div class="result-content" id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewSection = document.getElementById('previewSection');
+        const previewImage = document.getElementById('previewImage');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const resultContent = document.getElementById('resultContent');
+
+        const LAMBDA_ENDPOINT = 'https://f3w3vv2mui6aquqaov5euj7bge0cxchr.lambda-url.us-east-1.on.aws/';
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
+
+        let selectedFile = null;
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // File selection
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        // Handle file selection
+        function handleFile(file) {
+            hideError();
+            hideResult();
+
+            // Validate file type
+            if (!ALLOWED_TYPES.includes(file.type)) {
+                showError('Please upload a valid image file (PNG, JPG, or JPEG)');
+                return;
+            }
+
+            // Validate file size
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File size must be less than 10MB');
+                return;
+            }
+
+            selectedFile = file;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewSection.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Clear selection
+        clearBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            previewSection.style.display = 'none';
+            hideError();
+            hideResult();
+        });
+
+        // Upload and process
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            hideError();
+            hideResult();
+            showLoading();
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                const response = await fetch(LAMBDA_ENDPOINT, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                hideLoading();
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Upload failed: ${response.status} ${errorText}`);
+                }
+
+                const result = await response.json();
+                showResult(result);
+            } catch (error) {
+                hideLoading();
+                showError(error.message || 'Failed to process receipt. Please try again.');
+                console.error('Upload error:', error);
+            }
+        });
+
+        // UI helpers
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        function showLoading() {
+            loading.style.display = 'block';
+            uploadBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+            uploadBtn.disabled = false;
+        }
+
+        function showResult(data) {
+            resultContent.innerHTML = formatReceiptData(data);
+            resultSection.style.display = 'block';
+        }
+
+        function formatReceiptData(data) {
+            const receipt = data.receipt_data;
+            const fileInfo = data.file_info;
+
+            if (!receipt) {
+                return '<div class="result-value">Receipt processed successfully, but no data was extracted.</div>';
+            }
+
+            let html = '';
+
+            // Date
+            if (receipt.receipt_date) {
+                const date = new Date(receipt.receipt_date);
+                const formattedDate = date.toLocaleDateString('ko-KR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Date</div>
+                        <div class="result-value">${formattedDate}</div>
+                    </div>
+                `;
+            }
+
+            // Store Name
+            if (receipt.store_name) {
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Store</div>
+                        <div class="result-value">${escapeHtml(receipt.store_name)}</div>
+                    </div>
+                `;
+            }
+
+            // Category
+            if (receipt.expense_category) {
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Category</div>
+                        <div class="result-value">${escapeHtml(receipt.expense_category)}</div>
+                    </div>
+                `;
+            }
+
+            // Total Amount
+            if (receipt.total_amount) {
+                const currency = receipt.currency || 'KRW';
+                const formattedAmount = new Intl.NumberFormat('ko-KR', {
+                    style: 'currency',
+                    currency: currency
+                }).format(receipt.total_amount);
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Total Amount</div>
+                        <div class="result-value amount">${formattedAmount}</div>
+                    </div>
+                `;
+            }
+
+            // Payment Method
+            if (receipt.payment_method) {
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Payment</div>
+                        <div class="result-value">${escapeHtml(receipt.payment_method)}</div>
+                    </div>
+                `;
+            }
+
+            // Items
+            if (receipt.items && receipt.items.length > 0) {
+                const currency = receipt.currency || 'KRW';
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Items (${receipt.items.length})</div>
+                        <div class="result-value"></div>
+                    </div>
+                `;
+                
+                html += '<div class="items-list" style="margin-top: -8px;">';
+                receipt.items.forEach(item => {
+                    const quantity = item.quantity > 1 ? `${item.quantity} × ` : '';
+                    const price = item.total_price || item.unit_price;
+                    let priceStr = '';
+                    if (price) {
+                        const formattedPrice = new Intl.NumberFormat('ko-KR', {
+                            style: 'currency',
+                            currency: currency
+                        }).format(price);
+                        priceStr = formattedPrice;
+                    }
+                    html += `
+                        <div class="item-row">
+                            <div class="item-name">${quantity}${escapeHtml(item.name)}</div>
+                            <div class="item-details">${priceStr}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Receipt URL
+            if (fileInfo && fileInfo.url) {
+                html += `
+                    <div class="result-row">
+                        <div class="result-label">Receipt Image</div>
+                        <div class="result-value">
+                            <a href="${escapeHtml(fileInfo.url)}" target="_blank" class="receipt-link">View Receipt</a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function hideResult() {
+            resultSection.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,51 @@
+name: Deploy hello-world
+
+on:
+  push:
+    branches: 
+      - master
+    paths:
+      - 'functions/hello-world/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-hello-world.yml'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC authentication
+      contents: read  # Required to check out the repository
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        run: go mod download
+      
+      - name: Build hello-world
+        run: |
+          mkdir -p dist/hello-world
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/hello-world/bootstrap ./functions/hello-world
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Deploy hello-world to Lambda
+        uses: aws-actions/aws-lambda-deploy@v1
+        with:
+          function-name: ${{ secrets.LAMBDA_FUNCTION_PREFIX }}hello-world
+          code-artifacts-dir: ./dist/hello-world
+          runtime: provided.al2023
+          handler: bootstrap
+          role: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+

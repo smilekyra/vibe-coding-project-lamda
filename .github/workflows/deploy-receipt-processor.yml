@@ -1,0 +1,52 @@
+name: Deploy receipt-processor
+
+on:
+  push:
+    branches: 
+      - master
+    paths:
+      - 'functions/receipt-processor/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-receipt-processor.yml'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC authentication
+      contents: read  # Required to check out the repository
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        run: go mod download
+      
+      - name: Build receipt-processor
+        run: |
+          mkdir -p dist/receipt-processor
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/receipt-processor/bootstrap ./functions/receipt-processor
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Deploy receipt-processor to Lambda
+        uses: aws-actions/aws-lambda-deploy@v1
+        with:
+          function-name: ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-processor
+          code-artifacts-dir: ./dist/receipt-processor
+          runtime: provided.al2023
+          handler: bootstrap
+          role: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+          memory-size: 512
+          timeout: 90

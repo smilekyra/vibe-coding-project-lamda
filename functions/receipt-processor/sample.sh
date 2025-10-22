@@ -1,0 +1,4 @@
+ curl -X POST "https://f3w3vv2mui6aquqaov5euj7bge0cxchr.lambda-url.us-east-1.on.aws/" \
+  -H "Content-Type: application/json" \
+  -d "{\"filename\":\"sample.png\",\"file_content\":\"$(base64 -i /Users/pureugong/Desktop/sample.png | tr -d '\n')\",\"content_type\":\"image/png\"}"
+{"success":true,"message":"File uploaded successfully","file_info":{"original_name":"sample.png","file_name":"sample_20251018_165815_993d25d2.png","bucket_name":"vibe-receipt-uploads","key":"2025-10-18/sample_20251018_165815_993d25d2.png","size":10739,"content_type":"image/png","url":"https://vibe-receipt-uploads.s3.ap-northeast-1.amazonaws.com/2025-10-18/sample_20251018_165815_993d25d2.png","upload_date":"2025-10-18"},"timestamp":1760774294}%  

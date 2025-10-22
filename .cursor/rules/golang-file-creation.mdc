@@ -1,0 +1,65 @@
+---
+alwaysApply: true
+---
+# File Creation Rules for Golang Projects
+
+## CRITICAL: DO NOT CREATE these files unless explicitly requested:
+
+1. **Markdown Documentation Files**
+   - ❌ DO NOT create: README.md, CHANGELOG.md, CONTRIBUTING.md, or ANY .md files
+   - ✅ Only create when user explicitly says "create a README" or "add documentation"
+
+2. **Example Files**
+   - ❌ DO NOT create: example.go, examples.go, *_example.go, or any example files
+   - ✅ Only create when user specifically requests example code
+
+## What TO Create:
+
+- Only files directly requested by the user
+- Core application files needed for the specific task
+- Files essential to the implementation being built
+
+## When in doubt:
+
+- Ask "Should I create additional documentation?" before generating .md files
+- Focus on implementing the requested feature, not creating boilerplate
+```
+
+### How to Access:
+
+- Open Cursor Settings → General → **Project Rules**
+- Or use Command Palette: `Cmd/Ctrl + Shift + P` → "Add Project Rule"
+
+---
+
+## Alternative: Legacy Method (`.cursorrules`)
+
+If you prefer the simpler old method (still works but will be removed eventually):
+
+Create **`.cursorrules`** in your project root:
+```
+# Golang Project - File Creation Rules
+
+## DO NOT CREATE unless explicitly requested:
+- README.md, CHANGELOG.md, or ANY markdown files (.md)
+- example.go, examples.go, or ANY example files
+
+## Only create files that are:
+1. Directly requested by the user
+2. Essential for the specific implementation task
+3. Core application code (main.go, services, handlers, etc.)
+
+When in doubt, ASK before creating documentation or example files.
+Focus on implementing the requested feature ONLY.
+```
+
+---
+
+## Global User Rules (Optional)
+
+For rules that apply to **all your projects**:
+
+1. Go to **Cursor Settings** → **General** → **Rules for AI**
+2. Add:
+```
+Be concise. Never create markdown documentation or example files unless explicitly requested.
