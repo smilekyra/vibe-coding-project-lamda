@@ -52,8 +52,8 @@ func TestHandler(t *testing.T) {
 				if response.FileSize != 11 {
 					t.Errorf("Expected fileSize 11, got %d", response.FileSize)
 				}
-				if response.S3Bucket != "vibe-receipt-uploads" {
-					t.Errorf("Expected s3Bucket 'vibe-receipt-uploads', got '%s'", response.S3Bucket)
+				if response.S3Bucket != "vibe-receipt-uploads-kyra" {
+					t.Errorf("Expected s3Bucket 'vibe-receipt-uploads-kyra', got '%s'", response.S3Bucket)
 				}
 				if response.S3Key == "" {
 					t.Errorf("Expected s3Key to be set, got empty string")
@@ -153,8 +153,8 @@ func TestHandler(t *testing.T) {
 				if response.FileSize != 12 {
 					t.Errorf("Expected fileSize 12, got %d", response.FileSize)
 				}
-				if response.S3Bucket != "vibe-receipt-uploads" {
-					t.Errorf("Expected s3Bucket 'vibe-receipt-uploads', got '%s'", response.S3Bucket)
+				if response.S3Bucket != "vibe-receipt-uploads-kyra" {
+					t.Errorf("Expected s3Bucket 'vibe-receipt-uploads-kyra', got '%s'", response.S3Bucket)
 				}
 				if response.S3Key == "" {
 					t.Errorf("Expected s3Key to be set, got empty string")

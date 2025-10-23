@@ -33,7 +33,7 @@ type ErrorResponse struct {
 }
 
 const (
-	s3BucketName = "vibe-receipt-uploads"
+	s3BucketName = "vibe-receipt-uploads-kyra"
 )
 
 // S3Uploader interface for uploading files to S3
