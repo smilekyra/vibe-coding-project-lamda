@@ -4,12 +4,26 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
 )
 
+// MockS3Uploader is a mock implementation of S3Uploader for testing
+type MockS3Uploader struct{}
+
+func (m *MockS3Uploader) Upload(ctx context.Context, fileData []byte, fileName string) (string, error) {
+	// Return a mock S3 key for testing
+	return fmt.Sprintf("2025-10-23/%s", fileName), nil
+}
+
 func TestHandler(t *testing.T) {
+	// Replace the global uploader with mock for testing
+	originalUploader := uploader
+	uploader = &MockS3Uploader{}
+	defer func() { uploader = originalUploader }()
+
 	tests := []struct {
 		name           string
 		request        events.LambdaFunctionURLRequest
@@ -37,6 +51,12 @@ func TestHandler(t *testing.T) {
 				}
 				if response.FileSize != 11 {
 					t.Errorf("Expected fileSize 11, got %d", response.FileSize)
+				}
+				if response.S3Bucket != "vibe-receipt-uploads" {
+					t.Errorf("Expected s3Bucket 'vibe-receipt-uploads', got '%s'", response.S3Bucket)
+				}
+				if response.S3Key == "" {
+					t.Errorf("Expected s3Key to be set, got empty string")
 				}
 			},
 		},
@@ -132,6 +152,12 @@ func TestHandler(t *testing.T) {
 				}
 				if response.FileSize != 12 {
 					t.Errorf("Expected fileSize 12, got %d", response.FileSize)
+				}
+				if response.S3Bucket != "vibe-receipt-uploads" {
+					t.Errorf("Expected s3Bucket 'vibe-receipt-uploads', got '%s'", response.S3Bucket)
+				}
+				if response.S3Key == "" {
+					t.Errorf("Expected s3Key to be set, got empty string")
 				}
 			},
 		},
