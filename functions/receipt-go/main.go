@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,6 +36,11 @@ type ErrorResponse struct {
 
 const (
 	s3BucketName = "vibe-receipt-uploads-kyra"
+)
+
+var (
+	sheetsRepository SheetsRepository
+	extractionService ReceiptExtractionService
 )
 
 // S3Uploader interface for uploading files to S3
@@ -94,6 +100,39 @@ func (u *RealS3Uploader) Upload(ctx context.Context, fileData []byte, fileName s
 }
 
 var uploader S3Uploader = &RealS3Uploader{}
+
+// initServices initializes Google Sheets repository and extraction service
+func initServices(ctx context.Context) error {
+	// Initialize Google Sheets repository if credentials are available
+	credentialsJSON := os.Getenv("GOOGLE_CREDENTIALS_JSON")
+	spreadsheetID := os.Getenv("GOOGLE_SPREADSHEET_ID")
+
+	if credentialsJSON != "" && spreadsheetID != "" {
+		log.Printf("[INFO] Initializing Google Sheets repository")
+		repo, err := NewGoogleSheetsRepository(ctx, []byte(credentialsJSON), spreadsheetID)
+		if err != nil {
+			log.Printf("[ERROR] Failed to initialize Google Sheets repository: %v", err)
+			return fmt.Errorf("failed to initialize Google Sheets repository: %w", err)
+		}
+		sheetsRepository = repo
+		log.Printf("[INFO] Google Sheets repository initialized successfully")
+	} else {
+		log.Printf("[WARN] Google Sheets credentials not found, sheets integration disabled")
+	}
+
+	// Initialize OpenAI client and extraction service
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey != "" {
+		log.Printf("[INFO] Initializing OpenAI extraction service")
+		openAIClient := NewOpenAIClient(apiKey)
+		extractionService = NewReceiptExtractionService(openAIClient)
+		log.Printf("[INFO] OpenAI extraction service initialized successfully")
+	} else {
+		log.Printf("[WARN] OpenAI API key not found, extraction service disabled")
+	}
+
+	return nil
+}
 
 // Handler handles the Lambda function invocation
 // Works with Lambda Function URLs
@@ -201,6 +240,32 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 		}, nil
 	}
 
+	// Generate S3 URL
+	s3URL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", s3BucketName, s3Key)
+
+	// Extract receipt data if extraction service is available
+	var receiptData *ReceiptData
+	if extractionService != nil {
+		log.Printf("[INFO] Extracting receipt data from image")
+		extractionResp, err := extractionService.ExtractFromImage(ctx, decodedFile)
+		if err != nil {
+			log.Printf("[WARN] Failed to extract receipt data: %v (continuing without extraction)", err)
+		} else if extractionResp.Success {
+			receiptData = extractionResp.Data
+			log.Printf("[INFO] Receipt extraction successful")
+
+			// Save to Google Sheets if repository is available
+			if sheetsRepository != nil && receiptData != nil {
+				log.Printf("[INFO] Saving receipt data to Google Sheets")
+				if err := sheetsRepository.SaveReceipt(ctx, receiptData, s3URL); err != nil {
+					log.Printf("[ERROR] Failed to save to Google Sheets: %v (continuing)", err)
+				} else {
+					log.Printf("[INFO] Successfully saved receipt to Google Sheets")
+				}
+			}
+		}
+	}
+
 	// Create response
 	receiptResponse := ReceiptResponse{
 		FileName:  fileName,
@@ -240,5 +305,11 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 }
 
 func main() {
+	// Initialize services
+	ctx := context.Background()
+	if err := initServices(ctx); err != nil {
+		log.Fatalf("[FATAL] Failed to initialize services: %v", err)
+	}
+
 	lambda.Start(Handler)
 }
