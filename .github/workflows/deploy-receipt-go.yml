@@ -48,4 +48,6 @@ jobs:
           runtime: provided.al2023
           handler: bootstrap
           role: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+          timeout: 30
+          memory-size: 512
 
