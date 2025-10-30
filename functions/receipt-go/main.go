@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,11 +47,14 @@ type RealS3Uploader struct{}
 
 // Upload uploads file to S3 with date-based folder structure
 func (u *RealS3Uploader) Upload(ctx context.Context, fileData []byte, fileName string) (string, error) {
+	log.Printf("[INFO] Starting S3 upload - fileName: %s, size: %d bytes", fileName, len(fileData))
+
 	// Create AWS session
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("us-east-1"),
 	})
 	if err != nil {
+		log.Printf("[ERROR] Failed to create AWS session: %v", err)
 		return "", fmt.Errorf("failed to create AWS session: %w", err)
 	}
 
@@ -72,6 +76,8 @@ func (u *RealS3Uploader) Upload(ctx context.Context, fileData []byte, fileName s
 	// Create S3 key with date-based folder structure
 	s3Key := fmt.Sprintf("%s/%s", dateFolder, uniqueFileName)
 
+	log.Printf("[INFO] Uploading to S3 - bucket: %s, key: %s", s3BucketName, s3Key)
+
 	// Upload to S3
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s3BucketName),
@@ -79,9 +85,11 @@ func (u *RealS3Uploader) Upload(ctx context.Context, fileData []byte, fileName s
 		Body:   bytes.NewReader(fileData),
 	})
 	if err != nil {
+		log.Printf("[ERROR] S3 upload failed - bucket: %s, key: %s, error: %v", s3BucketName, s3Key, err)
 		return "", fmt.Errorf("failed to upload to S3: %w", err)
 	}
 
+	log.Printf("[INFO] S3 upload successful - bucket: %s, key: %s", s3BucketName, s3Key)
 	return s3Key, nil
 }
 
@@ -90,8 +98,11 @@ var uploader S3Uploader = &RealS3Uploader{}
 // Handler handles the Lambda function invocation
 // Works with Lambda Function URLs
 func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	log.Printf("[INFO] Received request - method: %s, path: %s", request.RequestContext.HTTP.Method, request.RequestContext.HTTP.Path)
+
 	// Only accept POST method
 	if request.RequestContext.HTTP.Method != "POST" {
+		log.Printf("[WARN] Invalid HTTP method: %s, only POST is allowed", request.RequestContext.HTTP.Method)
 		errorResponse := ErrorResponse{
 			Error: "Method not allowed. Only POST is supported.",
 		}
@@ -110,6 +121,7 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 	// Parse the request body
 	var requestBody map[string]interface{}
 	if err := json.Unmarshal([]byte(request.Body), &requestBody); err != nil {
+		log.Printf("[ERROR] Failed to parse request body: %v", err)
 		errorResponse := ErrorResponse{
 			Error: "Invalid request body. Expected JSON format.",
 		}
@@ -127,6 +139,7 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 	// Get file data (expect base64 encoded file)
 	fileData, ok := requestBody["file"].(string)
 	if !ok || fileData == "" {
+		log.Printf("[ERROR] Missing or invalid 'file' field in request body")
 		errorResponse := ErrorResponse{
 			Error: "Missing or invalid 'file' field in request body.",
 		}
@@ -146,10 +159,12 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 	if name, ok := requestBody["fileName"].(string); ok && name != "" {
 		fileName = name
 	}
+	log.Printf("[INFO] Processing file - fileName: %s", fileName)
 
 	// Decode base64 to get actual file size
 	decodedFile, err := base64.StdEncoding.DecodeString(fileData)
 	if err != nil {
+		log.Printf("[ERROR] Failed to decode base64 file data: %v", err)
 		errorResponse := ErrorResponse{
 			Error: "Failed to decode file data. Expected base64 encoded string.",
 		}
@@ -166,10 +181,12 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 
 	// Calculate file size
 	fileSize := int64(len(decodedFile))
+	log.Printf("[INFO] Decoded file - fileName: %s, size: %d bytes", fileName, fileSize)
 
 	// Upload to S3
 	s3Key, err := uploader.Upload(ctx, decodedFile, fileName)
 	if err != nil {
+		log.Printf("[ERROR] S3 upload failed - fileName: %s, error: %v", fileName, err)
 		errorResponse := ErrorResponse{
 			Error: fmt.Sprintf("Failed to upload file to S3: %v", err),
 		}
@@ -193,9 +210,12 @@ func Handler(ctx context.Context, request events.LambdaFunctionURLRequest) (even
 		Timestamp: time.Now().Unix(),
 	}
 
+	log.Printf("[INFO] Request successful - fileName: %s, s3Key: %s, size: %d bytes", fileName, s3Key, fileSize)
+
 	// Marshal to JSON
 	responseBytes, err := json.Marshal(receiptResponse)
 	if err != nil {
+		log.Printf("[ERROR] Failed to marshal response to JSON: %v", err)
 		errorResponse := ErrorResponse{
 			Error: "Failed to generate response",
 		}

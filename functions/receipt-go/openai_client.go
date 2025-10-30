@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +28,12 @@ type RealOpenAIClient struct {
 func NewOpenAIClient(apiKey string) *RealOpenAIClient {
 	if apiKey == "" {
 		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
+
+	if apiKey == "" {
+		log.Printf("[WARN] OpenAI API key not provided")
+	} else {
+		log.Printf("[INFO] OpenAI client initialized")
 	}
 
 	return &RealOpenAIClient{
@@ -100,6 +107,8 @@ type openAIUsage struct {
 
 // ExtractReceiptData extracts structured data from a receipt image using OpenAI Vision API
 func (c *RealOpenAIClient) ExtractReceiptData(ctx context.Context, imageData []byte) (*ReceiptData, error) {
+	log.Printf("[INFO] Starting receipt data extraction - imageSize: %d bytes", len(imageData))
+
 	// Encode image to base64
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
 	imageURL := fmt.Sprintf("data:image/jpeg;base64,%s", base64Image)
@@ -245,12 +254,16 @@ func (c *RealOpenAIClient) ExtractReceiptData(ctx context.Context, imageData []b
 	// Marshal request to JSON
 	reqJSON, err := json.Marshal(reqBody)
 	if err != nil {
+		log.Printf("[ERROR] Failed to marshal OpenAI request: %v", err)
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
+
+	log.Printf("[INFO] Calling OpenAI API - model: %s", reqBody.Model)
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(reqJSON))
 	if err != nil {
+		log.Printf("[ERROR] Failed to create HTTP request: %v", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -261,6 +274,7 @@ func (c *RealOpenAIClient) ExtractReceiptData(ctx context.Context, imageData []b
 	// Send request
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Printf("[ERROR] OpenAI API request failed: %v", err)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
@@ -268,35 +282,48 @@ func (c *RealOpenAIClient) ExtractReceiptData(ctx context.Context, imageData []b
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("[ERROR] Failed to read OpenAI response body: %v", err)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	// Check for HTTP errors
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("[ERROR] OpenAI API returned non-OK status - statusCode: %d, response: %s", resp.StatusCode, string(respBody))
 		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	// Parse response
 	var openAIResp openAIResponse
 	if err := json.Unmarshal(respBody, &openAIResp); err != nil {
+		log.Printf("[ERROR] Failed to parse OpenAI response JSON: %v", err)
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	// Log token usage
+	log.Printf("[INFO] OpenAI API call successful - promptTokens: %d, completionTokens: %d, totalTokens: %d",
+		openAIResp.Usage.PromptTokens, openAIResp.Usage.CompletionTokens, openAIResp.Usage.TotalTokens)
+
 	// Check if there are choices
 	if len(openAIResp.Choices) == 0 {
+		log.Printf("[ERROR] OpenAI response contains no choices")
 		return nil, fmt.Errorf("no choices in response")
 	}
 
 	// Check for refusal
 	if openAIResp.Choices[0].Message.Refusal != "" {
+		log.Printf("[ERROR] OpenAI request refused: %s", openAIResp.Choices[0].Message.Refusal)
 		return nil, fmt.Errorf("request refused: %s", openAIResp.Choices[0].Message.Refusal)
 	}
 
 	// Parse the structured data
 	var receiptData ReceiptData
 	if err := json.Unmarshal([]byte(openAIResp.Choices[0].Message.Content), &receiptData); err != nil {
+		log.Printf("[ERROR] Failed to parse receipt data from OpenAI response: %v", err)
 		return nil, fmt.Errorf("failed to parse receipt data: %w", err)
 	}
+
+	log.Printf("[INFO] Receipt data extracted successfully - merchant: %s, total: %.2f, items: %d",
+		receiptData.MerchantName, receiptData.Total, len(receiptData.Items))
 
 	return &receiptData, nil
 }
