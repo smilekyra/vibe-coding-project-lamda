@@ -20,6 +20,7 @@ type SheetsRepository interface {
 type GoogleSheetsRepository struct {
 	service     *sheets.Service
 	spreadsheet string
+	sheetName   string
 }
 
 // SheetRow represents a row in the Google Sheets
@@ -39,8 +40,9 @@ type SheetRow struct {
 // NewGoogleSheetsRepository creates a new Google Sheets repository
 // credentialsJSON: Google service account credentials JSON
 // spreadsheetID: The ID of the Google Spreadsheet to write to
-func NewGoogleSheetsRepository(ctx context.Context, credentialsJSON []byte, spreadsheetID string) (*GoogleSheetsRepository, error) {
-	log.Printf("[INFO] Creating Google Sheets repository - spreadsheetID: %s", spreadsheetID)
+// sheetName: The name of the sheet (tab) to write to. If empty, uses the first sheet.
+func NewGoogleSheetsRepository(ctx context.Context, credentialsJSON []byte, spreadsheetID string, sheetName string) (*GoogleSheetsRepository, error) {
+	log.Printf("[INFO] Creating Google Sheets repository - spreadsheetID: %s, sheetName: %s", spreadsheetID, sheetName)
 
 	srv, err := sheets.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
 	if err != nil {
@@ -48,10 +50,28 @@ func NewGoogleSheetsRepository(ctx context.Context, credentialsJSON []byte, spre
 		return nil, fmt.Errorf("failed to create sheets service: %w", err)
 	}
 
-	return &GoogleSheetsRepository{
+	repo := &GoogleSheetsRepository{
 		service:     srv,
 		spreadsheet: spreadsheetID,
-	}, nil
+		sheetName:   sheetName,
+	}
+
+	// If no sheet name provided, get the first sheet's name
+	if repo.sheetName == "" {
+		log.Printf("[INFO] No sheet name provided, fetching first sheet name")
+		spreadsheet, err := srv.Spreadsheets.Get(spreadsheetID).Context(ctx).Do()
+		if err != nil {
+			log.Printf("[ERROR] Failed to get spreadsheet info: %v", err)
+			return nil, fmt.Errorf("failed to get spreadsheet info: %w", err)
+		}
+		if len(spreadsheet.Sheets) == 0 {
+			return nil, fmt.Errorf("spreadsheet has no sheets")
+		}
+		repo.sheetName = spreadsheet.Sheets[0].Properties.Title
+		log.Printf("[INFO] Using first sheet: %s", repo.sheetName)
+	}
+
+	return repo, nil
 }
 
 // SaveReceipt saves receipt data to Google Sheets
@@ -76,8 +96,9 @@ func (r *GoogleSheetsRepository) SaveReceipt(ctx context.Context, data *ReceiptD
 	}
 
 	// Append to the spreadsheet
-	// Assumes the first sheet is the target sheet
-	sheetRange := "Sheet1!A:I" // A to I columns for 9 fields
+	// Use the configured sheet name
+	sheetRange := fmt.Sprintf("%s!A:I", r.sheetName) // A to I columns for 9 fields
+	log.Printf("[INFO] Appending to sheet range: %s", sheetRange)
 
 	_, err := r.service.Spreadsheets.Values.Append(r.spreadsheet, sheetRange, valueRange).
 		ValueInputOption("USER_ENTERED").

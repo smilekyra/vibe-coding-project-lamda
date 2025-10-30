@@ -106,10 +106,11 @@ func initServices(ctx context.Context) error {
 	// Initialize Google Sheets repository if credentials are available
 	credentialsJSON := os.Getenv("GOOGLE_CREDENTIALS_JSON")
 	spreadsheetID := os.Getenv("GOOGLE_SPREADSHEET_ID")
+	sheetName := os.Getenv("GOOGLE_SHEET_NAME") // Optional: sheet name (tab name)
 
 	if credentialsJSON != "" && spreadsheetID != "" {
 		log.Printf("[INFO] Initializing Google Sheets repository")
-		repo, err := NewGoogleSheetsRepository(ctx, []byte(credentialsJSON), spreadsheetID)
+		repo, err := NewGoogleSheetsRepository(ctx, []byte(credentialsJSON), spreadsheetID, sheetName)
 		if err != nil {
 			log.Printf("[ERROR] Failed to initialize Google Sheets repository: %v", err)
 			return fmt.Errorf("failed to initialize Google Sheets repository: %w", err)
