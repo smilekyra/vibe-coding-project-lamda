@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Test endpoint to check environment configuration
+LAMBDA_URL="https://c27whwi7rosvpiyg2pxngptiye0eklkj.lambda-url.us-east-1.on.aws/"
+
+echo "=========================================="
+echo "Checking Lambda Environment Configuration"
+echo "=========================================="
+echo ""
+echo "Expected environment variables:"
+echo "  - GOOGLE_CREDENTIALS_JSON"
+echo "  - GOOGLE_SPREADSHEET_ID"
+echo "  - OPENAI_API_KEY"
+echo ""
+echo "If these are not set, the integration features will be disabled."
+echo ""
+echo "To check CloudWatch Logs:"
+echo "1. Go to AWS Console"
+echo "2. Navigate to CloudWatch > Log groups"
+echo "3. Find the log group for your Lambda function (usually /aws/lambda/receipt-go)"
+echo "4. Look for messages like:"
+echo "   - [WARN] Google Sheets credentials not found, sheets integration disabled"
+echo "   - [WARN] OpenAI API key not found, extraction service disabled"
+echo "   - [INFO] Initializing Google Sheets repository"
+echo "   - [INFO] Extracting receipt data from image"
+echo "   - [INFO] Saving receipt data to Google Sheets"
+echo ""
+echo "=========================================="
