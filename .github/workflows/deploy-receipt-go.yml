@@ -27,12 +27,15 @@ jobs:
           go-version: '1.21'
 
       - name: Install dependencies
-        run: go mod download
+        run: |
+          cd functions/receipt-go
+          go mod download
 
       - name: Build receipt-go
         run: |
           mkdir -p dist/receipt-go
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/receipt-go/bootstrap ./functions/receipt-go
+          cd functions/receipt-go
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../../dist/receipt-go/bootstrap .
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
